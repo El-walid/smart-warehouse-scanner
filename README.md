@@ -1,4 +1,3 @@
-```markdown
 # 📦 Smart Warehouse Scanner (Mobile-to-Cloud)
 
 ![Python](https://img.shields.io/badge/Python-3.12-blue?style=for-the-badge&logo=python&logoColor=white) 
@@ -58,6 +57,7 @@ Open the generated `https://...localhost.run` link on your smartphone, grant cam
 
 ## 👨‍💻 Author
 **El Walid El Alaoui Fels**
+
 *Data Engineer | Automation Specialist*
-```
+
 
