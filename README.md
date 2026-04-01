@@ -57,7 +57,6 @@ Open the generated `https://...localhost.run` link on your smartphone, grant cam
 
 ## 👨‍💻 Author
 **El Walid El Alaoui Fels**
-
 *Data Engineer | Automation Specialist*
 
 
