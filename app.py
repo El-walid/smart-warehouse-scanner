@@ -44,11 +44,18 @@ camera_image = st.camera_input("Scanner un article")
 # 3. THE COMPUTER VISION ENGINE
 # ==========================================
 def get_current_stock(barcode):
-    """Calculates the current stock for a specific barcode."""
+    """Calculates the current stock, ignoring Excel's leading zero removal."""
     try:
         df = pd.read_excel(DB_FILE)
-        df["Code_Barre"] = df["Code_Barre"].astype(str)
-        return df[df["Code_Barre"] == str(barcode)]["Quantite_Ajoutee"].sum()
+        
+        # 1. Strip the leading zeros from the camera's barcode
+        clean_barcode = str(barcode).lstrip('0')
+        
+        # 2. Strip the leading zeros from the Excel column
+        df["Code_Barre_Clean"] = df["Code_Barre"].astype(str).str.lstrip('0')
+        
+        # 3. Compare the clean versions!
+        return df[df["Code_Barre_Clean"] == clean_barcode]["Quantite_Ajoutee"].sum()
     except:
         return 0
 
@@ -109,6 +116,12 @@ st.subheader("📊 État du Stock en Temps Réel")
 try:
     current_db = pd.read_excel(DB_FILE)
     if not current_db.empty:
+        
+        # Clean the zeros before grouping so it matches perfectly
+        current_db["Code_Barre"] = current_db["Code_Barre"].astype(str).str.lstrip('0')
+        
+        # Group by barcode and name to get the TRUE total stock
+        resume_stock = current_db.groupby(["Code_Barre", "Produit"])["Quantite_Ajoutee"].sum().reset_index()
         # Group by barcode and name to get the TRUE total stock
         resume_stock = current_db.groupby(["Code_Barre", "Produit"])["Quantite_Ajoutee"].sum().reset_index()
         resume_stock.columns = ["Code Barre", "Produit", "Stock Total"]
