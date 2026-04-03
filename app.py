@@ -56,17 +56,34 @@ if camera_image is not None:
             st.success(f"✅ Code détecté : **{barcode_data}**")
             
             # Show a form to ask the worker how many items they are adding
+            # Show a form to ask the worker about the operation
             with st.form("inventory_form"):
-                st.write("Détails de l'entrée en stock :")
-                product_name = st.text_input("Nom du produit (Optionnel)")
-                quantity = st.number_input("Quantité à ajouter", min_value=1, value=1, step=1)
+                st.write("Détails de l'opération :")
                 
-                submitted = st.form_submit_button("Valider l'entrée")
+                # --- THE NEW TOGGLE ---
+                operation = st.radio(
+                    "Type de mouvement", 
+                    ["Entrée de Stock 🟢", "Sortie de Stock 🔴"], 
+                    horizontal=True
+                )
+                
+                product_name = st.text_input("Nom du produit (Optionnel)")
+                quantity = st.number_input("Quantité", min_value=1, value=1, step=1)
+                
+                submitted = st.form_submit_button("Valider l'opération")
                 
                 if submitted:
-                    save_to_db(barcode_data, product_name, quantity)
-                    st.balloons() # Fun animation for the worker
-                    st.success(f"✅ {quantity} unité(s) ajoutée(s) au registre !")
+                    # 🧠 The Math Logic: If it's a 'Sortie', turn the quantity into a negative number
+                    final_qty = quantity if "Entrée" in operation else -quantity
+                    
+                    save_to_db(barcode_data, product_name, final_qty)
+                    
+                    # Visual feedback for the worker
+                    if "Entrée" in operation:
+                        st.balloons() 
+                        st.success(f"✅ {quantity} unité(s) AJOUTÉE(S) au stock !")
+                    else:
+                        st.warning(f"📦 {quantity} unité(s) RETIRÉE(S) du stock !")
     else:
         st.error("⚠️ Aucun code-barres détecté. Rapprochez-vous et faites la mise au point.")
 
