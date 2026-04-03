@@ -104,12 +104,24 @@ if camera_image is not None:
 # 4. LIVE DASHBOARD PREVIEW
 # ==========================================
 st.write("---")
-st.subheader("📊 Dernières Entrées en Stock")
+st.subheader("📊 État du Stock en Temps Réel")
+
 try:
     current_db = pd.read_excel(DB_FILE)
     if not current_db.empty:
-        # Show the 5 most recent scans, reversed so newest is at top
-        st.dataframe(current_db.tail(5).iloc[::-1], use_container_width=True)
+        # Group by barcode and name to get the TRUE total stock
+        resume_stock = current_db.groupby(["Code_Barre", "Produit"])["Quantite_Ajoutee"].sum().reset_index()
+        resume_stock.columns = ["Code Barre", "Produit", "Stock Total"]
+        
+        # Only show items that actually have stock (> 0)
+        resume_stock = resume_stock[resume_stock["Stock Total"] > 0]
+        
+        # Display the clean aggregated table
+        st.dataframe(resume_stock, use_container_width=True)
+        
+        # Hide the messy transaction log inside a dropdown!
+        with st.expander("Voir l'historique des transactions"):
+            st.dataframe(current_db.tail(10).iloc[::-1], use_container_width=True)
     else:
         st.info("Le registre est vide.")
 except Exception as e:
