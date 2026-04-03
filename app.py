@@ -13,25 +13,48 @@ DB_FILE = "inventory.xlsx"
 def init_db():
     """Creates the Excel file if it doesn't exist yet."""
     if not os.path.exists(DB_FILE):
-        df = pd.DataFrame(columns=["Date_Heure", "Code_Barre", "Produit", "Quantite_Ajoutee"])
+        # Notice we changed "Quantite_Ajoutee" to "Stock_Total"
+        df = pd.DataFrame(columns=["Derniere_Mise_A_Jour", "Code_Barre", "Produit", "Stock_Total"])
         df.to_excel(DB_FILE, index=False)
 
-def save_to_db(barcode, name, qty):
-    """Appends a new scan to the Excel ledger."""
+def save_to_db(barcode, name, qty_change):
+    """Updates the existing stock if the item exists, or creates a new row if it doesn't."""
     df = pd.read_excel(DB_FILE)
     
-    new_row = pd.DataFrame([{
-        "Date_Heure": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-        "Code_Barre": str(barcode), # 1. Force the new entry to be a string
-        "Produit": name,
-        "Quantite_Ajoutee": qty
-    }])
-    
-    df = pd.concat([df, new_row], ignore_index=True)
-    
-    # 🛡️ THE FIX: Force the ENTIRE column to be pure text before saving
+    # 1. Clean the barcodes for accurate matching (The zero-stripper fix!)
     df["Code_Barre"] = df["Code_Barre"].astype(str)
+    clean_barcode = str(barcode).lstrip('0')
+    df["Code_Barre_Clean"] = df["Code_Barre"].str.lstrip('0')
     
+    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+    # 2. Check if the barcode already exists in the Excel file
+    if clean_barcode in df["Code_Barre_Clean"].values:
+        # 🔄 IT EXISTS: Update the existing row
+        # Find the exact row index where this barcode lives
+        row_index = df.index[df['Code_Barre_Clean'] == clean_barcode][0]
+        
+        # Overwrite the stock total and the date
+        df.at[row_index, "Stock_Total"] += qty_change
+        df.at[row_index, "Derniere_Mise_A_Jour"] = now
+        
+        # If they left the name blank, but we already have a name, keep the old name
+        if name and pd.isna(df.at[row_index, "Produit"]):
+            df.at[row_index, "Produit"] = name
+            
+    else:
+        # ➕ IT DOES NOT EXIST: Add a brand new row
+        new_row = pd.DataFrame([{
+            "Derniere_Mise_A_Jour": now,
+            "Code_Barre": str(barcode),
+            "Produit": name,
+            "Stock_Total": qty_change
+        }])
+        df = pd.concat([df, new_row], ignore_index=True)
+
+    # 3. Clean up our temporary matching column and save
+    df = df.drop(columns=["Code_Barre_Clean"], errors='ignore')
+    df["Code_Barre"] = df["Code_Barre"].astype(str)
     df.to_excel(DB_FILE, index=False)
 
 # ==========================================
