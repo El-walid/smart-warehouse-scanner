@@ -43,24 +43,32 @@ camera_image = st.camera_input("Scanner un article")
 # ==========================================
 # 3. THE COMPUTER VISION ENGINE
 # ==========================================
+def get_current_stock(barcode):
+    """Calculates the current stock for a specific barcode."""
+    try:
+        df = pd.read_excel(DB_FILE)
+        df["Code_Barre"] = df["Code_Barre"].astype(str)
+        return df[df["Code_Barre"] == str(barcode)]["Quantite_Ajoutee"].sum()
+    except:
+        return 0
+
 if camera_image is not None:
-    # Convert the picture into a format PyZbar can read
     image = Image.open(camera_image)
     decoded_objects = decode(image)
 
-    # If the AI found a barcode in the picture...
     if decoded_objects:
         for obj in decoded_objects:
             barcode_data = obj.data.decode('utf-8')
             
-            st.success(f"✅ Code détecté : **{barcode_data}**")
+            # 🧠 1. Calculate stock BEFORE showing the form
+            current_stock = get_current_stock(barcode_data)
             
-            # Show a form to ask the worker how many items they are adding
-            # Show a form to ask the worker about the operation
+            st.success(f"✅ Code détecté : **{barcode_data}**")
+            st.info(f"📦 Stock actuel disponible : **{current_stock}** unités")
+            
             with st.form("inventory_form"):
                 st.write("Détails de l'opération :")
                 
-                # --- THE NEW TOGGLE ---
                 operation = st.radio(
                     "Type de mouvement", 
                     ["Entrée de Stock 🟢", "Sortie de Stock 🔴"], 
@@ -73,17 +81,22 @@ if camera_image is not None:
                 submitted = st.form_submit_button("Valider l'opération")
                 
                 if submitted:
-                    # 🧠 The Math Logic: If it's a 'Sortie', turn the quantity into a negative number
-                    final_qty = quantity if "Entrée" in operation else -quantity
-                    
-                    save_to_db(barcode_data, product_name, final_qty)
-                    
-                    # Visual feedback for the worker
-                    if "Entrée" in operation:
+                    if "Sortie" in operation:
+                        # 🛡️ 2. Safety Checks for Outbound Stock!
+                        if current_stock <= 0:
+                            st.error("❌ Impossible : Ce produit n'est pas en stock (Stock = 0).")
+                        elif quantity > current_stock:
+                            st.error(f"❌ Stock insuffisant ! Vous essayez de retirer {quantity}, mais il n'y en a que {current_stock}.")
+                        else:
+                            save_to_db(barcode_data, product_name, -quantity)
+                            st.warning(f"📦 {quantity} unité(s) RETIRÉE(S) du stock !")
+                            st.rerun() # Refresh the page instantly to show new stock
+                    else:
+                        # Inbound Stock (Normal)
+                        save_to_db(barcode_data, product_name, quantity)
                         st.balloons() 
                         st.success(f"✅ {quantity} unité(s) AJOUTÉE(S) au stock !")
-                    else:
-                        st.warning(f"📦 {quantity} unité(s) RETIRÉE(S) du stock !")
+                        st.rerun() # Refresh the page instantly
     else:
         st.error("⚠️ Aucun code-barres détecté. Rapprochez-vous et faites la mise au point.")
 
