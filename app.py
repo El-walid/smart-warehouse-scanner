@@ -19,13 +19,19 @@ def init_db():
 def save_to_db(barcode, name, qty):
     """Appends a new scan to the Excel ledger."""
     df = pd.read_excel(DB_FILE)
+    
     new_row = pd.DataFrame([{
         "Date_Heure": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-        "Code_Barre": barcode,
+        "Code_Barre": str(barcode), # 1. Force the new entry to be a string
         "Produit": name,
         "Quantite_Ajoutee": qty
     }])
+    
     df = pd.concat([df, new_row], ignore_index=True)
+    
+    # 🛡️ THE FIX: Force the ENTIRE column to be pure text before saving
+    df["Code_Barre"] = df["Code_Barre"].astype(str)
+    
     df.to_excel(DB_FILE, index=False)
 
 # ==========================================
@@ -116,7 +122,7 @@ st.subheader("📊 État du Stock en Temps Réel")
 try:
     current_db = pd.read_excel(DB_FILE)
     if not current_db.empty:
-        
+
         # Clean the zeros before grouping so it matches perfectly
         current_db["Code_Barre"] = current_db["Code_Barre"].astype(str).str.lstrip('0')
         
@@ -134,7 +140,19 @@ try:
         
         # Hide the messy transaction log inside a dropdown!
         with st.expander("Voir l'historique des transactions"):
-            st.dataframe(current_db.tail(10).iloc[::-1], use_container_width=True)
+            # 1. Make a copy of the history so we don't break the original data
+            history_df = current_db.tail(10).iloc[::-1].copy()
+            
+            # 2. Rename the columns to be highly professional for the UI
+            history_df = history_df.rename(columns={
+                "Date_Heure": "Date & Heure",
+                "Code_Barre": "Code Barre",
+                "Produit": "Produit",
+                "Quantite_Ajoutee": "Mouvement (Entrée/Sortie)"
+            })
+            
+            # 3. Display the beautifully formatted table
+            st.dataframe(history_df, use_container_width=True)
     else:
         st.info("Le registre est vide.")
 except Exception as e:
