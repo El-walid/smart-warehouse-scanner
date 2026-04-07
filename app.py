@@ -69,6 +69,7 @@ init_db() # Ensure database exists
 # --- THE MAGIC CAMERA BUTTON ---
 camera_image = st.camera_input("Scanner un article")
 
+
 # ==========================================
 # 3. THE COMPUTER VISION ENGINE
 # ==========================================
@@ -87,7 +88,7 @@ def get_current_stock(barcode):
         return df[df["Code_Barre_Clean"] == clean_barcode]["Quantite_Ajoutee"].sum()
     except:
         return 0
-
+#condiftion to check if the camera input is not empty before processing
 if camera_image is not None:
     image = Image.open(camera_image)
     decoded_objects = decode(image)
